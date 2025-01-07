@@ -13,8 +13,8 @@ function initmsh
 
 %------------------------------------ push path to utilities
 
-    filename = mfilename('fullpath') ;
-    filepath = fileparts( filename ) ;
+    filename = mfilename('fullpath') 
+    filepath = fileparts( filename ) 
 
     addpath([filepath,'/aabb-tree']) ;
     addpath([filepath,'/geom-util']) ;
