@@ -1,4 +1,4 @@
-function [vert,conn,tria,tnum] = refine2(varargin)
+function [vert,conn,tria,tnum] = refine2(node, PSLG, part, hfun, harg, options)
 %REFINE2 (Frontal)-Delaunay-refinement for two-dimensional,
 %polygonal geometries.
 %   [VERT,EDGE,TRIA,TNUM] = REFINE2(NODE,EDGE) returns a co-
@@ -135,18 +135,24 @@ function [vert,conn,tria,tnum] = refine2(varargin)
 %   Last updated    : 13/02/2020
 %-----------------------------------------------------------
 
-    node = []; PSLG = []; part = {}; opts = [] ;
-    hfun = []; harg = {};
-
-%---------------------------------------------- extract args
-    if (nargin>=+1), node = varargin{1}; end
-    if (nargin>=+2), PSLG = varargin{2}; end
-    if (nargin>=+3), part = varargin{3}; end
-    if (nargin>=+4), opts = varargin{4}; end
-    if (nargin>=+5), hfun = varargin{5}; end
-    if (nargin>=+6), harg = varargin(6:end); end
-
-   [opts] = makeopt(opts) ;
+arguments
+    node = [];
+    PSLG = [];
+    part = {};
+    hfun = [];
+    harg = {};
+    options.dtri = 'constrained' 
+    options.kind = 'delfront' 
+    options.ref1 = 'refine' 
+    options.ref2 = 'refine' 
+    options.iter = +inf 
+    options.disp = +10 
+    options.rho2 = 1.025 
+    options.off2 = 0.933 
+    options.siz1 = 1.333 
+    options.siz2 = 1.300 
+    options.dbug = false
+end
 
 %---------------------------------------------- default EDGE
     nnod = size(node,1) ;
@@ -162,7 +168,7 @@ function [vert,conn,tria,tnum] = refine2(varargin)
 
 %---------------------------------------------- basic checks
     if (~isnumeric(node) || ~isnumeric(PSLG) || ...
-        ~iscell   (part) || ~isstruct (opts) )
+        ~iscell   (part) || ~isstruct (options) )
         error('refine2:incorrectInputClass' , ...
             'Incorrect input class.') ;
     end
@@ -225,7 +231,7 @@ function [vert,conn,tria,tnum] = refine2(varargin)
     end
 
 %---------------------------------------------- output title
-    if (~isinf(opts.disp))
+    if (~isinf(options.disp))
         fprintf(1,'\n') ;
         fprintf(1,' Refine triangulation...\n') ;
         fprintf(1,'\n') ;
@@ -258,19 +264,18 @@ function [vert,conn,tria,tnum] = refine2(varargin)
 %-------------------------------- PASS 0: shield sharp feat.
    [vert,conn,tria,tnum,iter] = ...
         cdtbal0(vert,conn,tria,tnum, ...
-            node,PSLG,part,opts,hfun,harg,iter);
+            node,PSLG,part,options,hfun,harg,iter);
 
 %-------------------------------- PASS 1: refine 1-simplexes
    [vert,conn,tria,tnum,iter] = ...
         cdtref1(vert,conn,tria,tnum, ...
-            node,PSLG,part,opts,hfun,harg,iter);
+            node,PSLG,part,options,hfun,harg,iter);
 
 %-------------------------------- PASS 2: refine 2-simplexes
    [vert,conn,tria,tnum,iter] = ...
-        cdtref2(vert,conn,tria,tnum, ...
-            node,PSLG,part,opts,hfun,harg,iter);
+        cdtref2(vert,conn,tria,tnum,node,PSLG,part,options,hfun,harg,iter);
 
-    if (~isinf(opts.disp)), fprintf(1,'\n'); end
+    if (~isinf(options.disp)), fprintf(1,'\n'); end
 
 %-------------------------------- trim extra adjacency info.
     tria = tria( :,1:3) ;
@@ -1093,10 +1098,10 @@ function [vert,conn,tria,tnum,iter] = ...
 
     %------------------------------------- split constraints
         idx1 = ...
-       (1:size(new1))'+size(vert,1) ;
+       (1:size(new1,1))'+size(vert,1) ;
 
         idx2 = ...
-       (1:size(new2))'+size(new1,1) ...
+       (1:size(new2,1))'+size(new1,1) ...
                       +size(vert,1) ;
 
         cnew = [conn( ref1,1), idx1
